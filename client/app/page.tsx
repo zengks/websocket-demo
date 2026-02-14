@@ -10,6 +10,8 @@ export default function Home() {
 
 	const socketRef = useRef<WebSocket | null>(null);
 
+	const [myId] = useState(() => Math.random().toString(36).substring(7));
+
 	useEffect(() => {
 		const socket = new WebSocket('ws://localhost:8080');
 		socketRef.current = socket;
@@ -34,7 +36,11 @@ export default function Home() {
 
 	const sendMessage = () => {
 		if (socketRef.current && input.trim()) {
-			socketRef.current.send(input);
+			const payload = {
+				text: input,
+				senderId: myId,
+			};
+			socketRef.current.send(JSON.stringify(payload));
 			setInput('');
 		}
 	};
@@ -53,19 +59,36 @@ export default function Home() {
 					</div>
 				</div>
 
-				{/* Chat Box (Scrollable) */}
 				<div className="h-96 overflow-y-auto p-4 space-y-2 flex flex-col">
-					{messages.map((msg, index) => (
-						<div key={index} className="bg-gray-700 p-2 rounded-lg self-start max-w-[80%]">
-							<span className="text-xs text-gray-400 block">
-								{msg.user} • {msg.timestamp}
-							</span>
-							<p>{msg.text}</p>
-						</div>
-					))}
-					{messages.length === 0 && (
-						<p className="text-gray-500 text-center mt-10">No messages yet...</p>
-					)}
+					{messages.map((msg, index) => {
+						// Check if I sent this message
+						const isMyMessage = msg.senderId === myId;
+						const isSystem = msg.user === 'System';
+
+						return (
+							<div
+								key={index}
+								className={`p-2 rounded-lg max-w-[80%] mb-2 ${
+									isSystem
+										? 'bg-gray-500 text-center self-center w-full text-xs' // System/Ticker style
+										: isMyMessage
+											? 'bg-blue-600 self-end text-right' // MY messages (Right)
+											: 'bg-gray-700 self-start text-left' // THEIR messages (Left)
+								}`}
+							>
+								{/* Only show sender name if it's not me and not system */}
+								{!isMyMessage && !isSystem && (
+									<span className="text-xs text-gray-400 block mb-1">
+										User {msg.senderId?.slice(0, 4)}
+									</span>
+								)}
+								<p>{msg.text}</p>
+								<span className="text-[10px] text-gray-300 opacity-70 block mt-1">
+									{msg.timestamp}
+								</span>
+							</div>
+						);
+					})}
 				</div>
 
 				{/* Input Area */}
